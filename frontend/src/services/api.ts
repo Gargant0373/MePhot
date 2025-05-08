@@ -14,13 +14,17 @@ export interface PaginatedResponse {
   }
 }
 
+const normalizeUrl = (url: string): string => {
+  return url.endsWith('/') ? url.slice(0, -1) : url;
+};
+
 const getAuthHeader = (password: string): string => {
   return `Basic ${btoa(`user:${password}`)}`;
 };
 
 export const bypassNgrokWarning = async (url: string): Promise<boolean> => {
   try {
-    const response = await fetch(url, { 
+    const response = await fetch(normalizeUrl(url), { 
       credentials: 'include',
       mode: 'cors',
       cache: 'no-cache'
@@ -34,11 +38,13 @@ export const bypassNgrokWarning = async (url: string): Promise<boolean> => {
 
 export const fetchFolders = async (config: ApiConfig): Promise<string[]> => {
   try {
-    if (config.serverUrl.includes('ngrok')) {
-      await bypassNgrokWarning(config.serverUrl);
+    const baseUrl = normalizeUrl(config.serverUrl);
+    
+    if (baseUrl.includes('ngrok')) {
+      await bypassNgrokWarning(baseUrl);
     }
 
-    const response = await fetch(`${config.serverUrl}/api/folders`, {
+    const response = await fetch(`${baseUrl}/api/folders`, {
       headers: {
         'Authorization': getAuthHeader(config.password)
       },
@@ -64,7 +70,8 @@ export const fetchImages = async (
   pageSize = 20
 ): Promise<PaginatedResponse> => {
   try {
-    const url = new URL(`${config.serverUrl}/api/folders/${folderName}`);
+    const baseUrl = normalizeUrl(config.serverUrl);
+    const url = new URL(`${baseUrl}/api/folders/${folderName}`);
     url.searchParams.append('page', page.toString());
     url.searchParams.append('pageSize', pageSize.toString());
 
@@ -91,22 +98,31 @@ export const getImageUrl = (
   folderName: string,
   imageName: string
 ): string => {
+  const baseUrl = normalizeUrl(config.serverUrl);
   const authToken = btoa(`user:${config.password}`);
-  return `${config.serverUrl}/api/images/${folderName}/${imageName}?auth=${encodeURIComponent(authToken)}`;
+  return `${baseUrl}/api/images/${folderName}/${imageName}?auth=${encodeURIComponent(authToken)}`;
 };
 
 export const testConnection = async (config: ApiConfig): Promise<boolean> => {
   try {
-    if (config.serverUrl.includes('ngrok')) {
-      await bypassNgrokWarning(config.serverUrl);
+    const baseUrl = normalizeUrl(config.serverUrl);
+    
+    if (baseUrl.includes('ngrok') || baseUrl.includes('loca.lt')) {
+      await bypassNgrokWarning(baseUrl);
     }
     
-    const response = await fetch(`${config.serverUrl}/api/folders`, {
+    console.log(`Testing connection to: ${baseUrl}/api/folders`);
+    
+    const response = await fetch(`${baseUrl}/api/folders`, {
       headers: {
         'Authorization': getAuthHeader(config.password)
       },
       credentials: 'include'
     });
+    
+    if (!response.ok) {
+      console.error(`Server responded with status: ${response.status}`);
+    }
     
     return response.ok;
   } catch (error) {
