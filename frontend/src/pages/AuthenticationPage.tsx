@@ -1,12 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useConfig } from "../context/ConfigContext";
-import { testConnection } from "../services/api";
+import { testConnection, bypassNgrokWarning } from "../services/api";
 import "./AuthenticationPage.css";
 
 function AuthenticationPage(props: { setAuthenticated: (authenticated: boolean) => void }) {
     const { serverUrl, setServerUrl, password, setPassword } = useConfig();
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [ngrokDetected, setNgrokDetected] = useState(false);
+
+    useEffect(() => {
+        setNgrokDetected(serverUrl.includes('ngrok'));
+    }, [serverUrl]);
 
     const handleServerUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         setServerUrl(event.target.value);
@@ -31,14 +36,22 @@ function AuthenticationPage(props: { setAuthenticated: (authenticated: boolean) 
 
         setIsLoading(true);
         try {
+            if (ngrokDetected) {
+                await bypassNgrokWarning(serverUrl);
+            }
+            
             const isConnected = await testConnection({ serverUrl, password });
             
             if (isConnected) {
                 props.setAuthenticated(true);
                 return true;
             } else {
-                setError("Connection failed. Please check the server URL and password");
-                setTimeout(() => setError(null), 3000);
+                if (ngrokDetected) {
+                    setError("Connection failed. If using ngrok, try visiting the URL directly in a new tab first.");
+                } else {
+                    setError("Connection failed. Please check the server URL and password");
+                }
+                setTimeout(() => setError(null), 5000);
                 return false;
             }
         } catch (error) {
@@ -54,6 +67,11 @@ function AuthenticationPage(props: { setAuthenticated: (authenticated: boolean) 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         await validateConnection();
+    };
+
+    // Function to open ngrok URL in a new tab
+    const openNgrokUrl = () => {
+        window.open(serverUrl, '_blank');
     };
 
     return (
@@ -93,6 +111,18 @@ function AuthenticationPage(props: { setAuthenticated: (authenticated: boolean) 
                                 disabled={isLoading}
                             />
                         </div>
+                        {ngrokDetected && (
+                            <div className="ngrok-notice">
+                                <p>Ngrok URL detected. If connection fails, try visiting the URL directly first:</p>
+                                <button 
+                                    type="button"
+                                    className="windows-button"
+                                    onClick={openNgrokUrl}
+                                >
+                                    Open Ngrok URL
+                                </button>
+                            </div>
+                        )}
                         {error && <div className="error-message">{error}</div>}
                         {isLoading && <div className="loading-message">Connecting to server...</div>}
                         <div className="field-row window-button-row">

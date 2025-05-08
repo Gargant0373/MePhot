@@ -126,6 +126,24 @@
   margin-right: 8px;
 }
 
+.ngrok-notice {
+  background-color: #ffffcc;
+  border: 1px solid #ffcc00;
+  border-radius: 2px;
+  padding: 10px;
+  margin: 10px 0;
+  font-size: 12px;
+}
+
+.ngrok-notice p {
+  margin: 0 0 8px 0;
+}
+
+.ngrok-notice button {
+  font-size: 11px;
+  margin-top: 5px;
+}
+
 @keyframes spinner {
   to {
     transform: rotate(360deg);

@@ -193,15 +193,40 @@ function GalleryPage({ folder, onBack }: GalleryPageProps) {
     setSelectedImage(null);
   };
 
-  const handleDownload = (imageSrc: string) => {
-    const imageName = imageSrc.split('/').pop() || 'image.jpg';
+  const handleDownload = async (imageSrc: string) => {
+    const imageName = imageSrc.split('/').pop()?.split('?')[0] || 'image.jpg';
     
-    const link = document.createElement('a');
-    link.href = imageSrc;
-    link.download = imageName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      setLoading(true);
+      
+      const response = await fetch(imageSrc, {
+        credentials: 'include',
+        headers: {
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download image: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = imageName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+    } catch (err) {
+      console.error('Download error:', err);
+      setError(`Failed to download image. ${err instanceof Error ? err.message : 'Unknown error'}`);
+      setTimeout(() => setError(null), 3000);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleNextPage = () => {

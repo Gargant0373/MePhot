@@ -18,12 +18,31 @@ const getAuthHeader = (password: string): string => {
   return `Basic ${btoa(`user:${password}`)}`;
 };
 
+export const bypassNgrokWarning = async (url: string): Promise<boolean> => {
+  try {
+    const response = await fetch(url, { 
+      credentials: 'include',
+      mode: 'cors',
+      cache: 'no-cache'
+    });
+    return response.ok;
+  } catch (error) {
+    console.error('Error bypassing ngrok warning:', error);
+    return false;
+  }
+};
+
 export const fetchFolders = async (config: ApiConfig): Promise<string[]> => {
   try {
+    if (config.serverUrl.includes('ngrok')) {
+      await bypassNgrokWarning(config.serverUrl);
+    }
+
     const response = await fetch(`${config.serverUrl}/api/folders`, {
       headers: {
         'Authorization': getAuthHeader(config.password)
-      }
+      },
+      credentials: 'include'
     });
 
     if (!response.ok) {
@@ -52,7 +71,8 @@ export const fetchImages = async (
     const response = await fetch(url.toString(), {
       headers: {
         'Authorization': getAuthHeader(config.password)
-      }
+      },
+      credentials: 'include'
     });
 
     if (!response.ok) {
@@ -77,10 +97,15 @@ export const getImageUrl = (
 
 export const testConnection = async (config: ApiConfig): Promise<boolean> => {
   try {
+    if (config.serverUrl.includes('ngrok')) {
+      await bypassNgrokWarning(config.serverUrl);
+    }
+    
     const response = await fetch(`${config.serverUrl}/api/folders`, {
       headers: {
         'Authorization': getAuthHeader(config.password)
-      }
+      },
+      credentials: 'include'
     });
     
     return response.ok;
